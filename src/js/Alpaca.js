@@ -109,34 +109,31 @@
             return existing;
         };
 
+        var specialFunctionNames = ["get", "exists", "destroy"];
+        var isSpecialFunction = (args.length > 1 && Alpaca.isString(args[1]) && (specialFunctionNames.indexOf(args[1]) > -1));
+
         var existing = findExistingAlpacaBinding();
-        if (existing)
+        if (existing || isSpecialFunction)
         {
-            // an alpaca form is already bound to this field
+            if (isSpecialFunction)
+            {
+                // second argument must be a special function name
+                var specialFunctionName = args[1];
+                if ("get" === specialFunctionName) {
+                    return existing;
+                }
+                else if ("exists" === specialFunctionName) {
+                    return (existing ? true : false);
+                }
+                else if ("destroy" === specialFunctionName) {
+                    existing.destroy();
+                    return;
+                }
 
-            // if we only have 1 argument, then we don't do anything
-            if (args.length === 1)
-            {
-                return;
-            }
-
-            // second argument must be a special function name
-            var specialFunctionName = args[1];
-            if ("get" === specialFunctionName)
-            {
-                return existing;
-            }
-            else if ("exists" === specialFunctionName)
-            {
-                return true;
-            }
-            else if ("destroy" === specialFunctionName)
-            {
-                existing.destroy();
-                return true;
+                return Alpaca.throwDefaultError("Unknown special function: " + specialFunctionName);
             }
 
-            return Alpaca.throwDefaultError("Unknown special function: " + specialFunctionName);
+            return existing;
         }
         else
         {
@@ -2804,7 +2801,7 @@
 
         // invoke Alpaca against current element
         var ret = Alpaca.apply(this, newArgs);
-        if (!ret) {
+        if (typeof(ret) === "undefined") {
             // as per jQuery's pattern, assume we hand back $el
             ret = $(this);
         }
@@ -3273,29 +3270,6 @@
     };
 
     /**
-     * Runs the given function over the field's children recursively.
-     *
-     * @param field
-     * @param fn
-     */
-    Alpaca.fieldApplyChildren = function(field, fn)
-    {
-        var f = function(field, fn)
-        {
-            // if the field has children, go depth first
-            if (field.children && field.children.length > 0)
-            {
-                for (var i = 0; i < field.children.length; i++)
-                {
-                    fn(field.children[i]);
-                }
-            }
-        };
-
-        f(field, fn);
-    };
-
-    /**
      * Runs the given function over the field and all of its children recursively.
      *
      * @param field
@@ -3305,7 +3279,14 @@
     {
         fn(field);
 
-        Alpaca.fieldApplyChildren(field, fn);
+        // if the field has children, go depth first
+        if (field.children && field.children.length > 0)
+        {
+            for (var i = 0; i < field.children.length; i++)
+            {
+                Alpaca.fieldApplyFieldAndChildren(field.children[i], fn);
+            }
+        }
     };
 
     /**
